@@ -27,9 +27,7 @@ const DataTable = ({ data, columns, keyProp, clickHandler, deleteHandler }) => {
       <tbody className={`${isScrollable ? styles.scrollable : ''}`} ref={tbodyRef}>
         {data.map((item, rowIndex) => (
           <tr key={item[keyProp]} onClick={clickHandler ? () => clickHandler(item) : ''}>
-            {columns.map((col, colIndex) => (
-              <td key={colIndex} className={col.className(item) || ''}>{col.render(item)}</td>
-            ))}
+            {columns.map((col, colIndex) => <td key={colIndex} className={col.className(item) || ''}>{col.render(item)}</td>)}
             {deleteHandler &&
               <td key={rowIndex} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => deleteHandler(item)} className={styles.button}>

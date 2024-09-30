@@ -9,6 +9,7 @@ export async function GET() {
     const client = await db.connect();
     const rows =  await client.sql`SELECT * FROM ingredienti_ricette`;
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }

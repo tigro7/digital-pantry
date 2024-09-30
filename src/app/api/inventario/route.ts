@@ -12,6 +12,7 @@ export async function GET() {
 
     //console.debug(rows);
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }

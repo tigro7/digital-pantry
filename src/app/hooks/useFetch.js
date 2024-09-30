@@ -5,7 +5,12 @@ const useFetch = (url, refreshInterval, randomRefresher) => {
     const [data, setData] = useState([]);
   
     const fetchData = async () => {
-      fetch(url)
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache', // Disabilita la cache
+        },
+      })
         .then((response) => response.json())
         .then((data) => {
           setData(data);
@@ -17,7 +22,8 @@ const useFetch = (url, refreshInterval, randomRefresher) => {
   
     useEffect(() => {
       fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [url, randomRefresher]);
   
     useInterval(() => {

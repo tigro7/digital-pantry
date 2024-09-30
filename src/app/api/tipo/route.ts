@@ -10,6 +10,7 @@ export async function GET() {
 
     //console.debug(rows);
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }
@@ -20,7 +21,21 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { tipo, porzioni } = body;
 
-    await client.sql`INSERT INTO tipo (nome, porzioni) VALUES (${tipo}, ${porzioni})`;
+    console.debug(tipo, porzioni);
 
-    return NextResponse.json({ message: `Tipo ${tipo} aggiunto!` }, {status: 201});
+    try {
+        const result = await client.sql`
+            INSERT INTO tipo (nome, porzioni)
+            VVALUES (${tipo}, ${porzioni})
+            RETURNING *;
+        `;
+
+        console.debug(result);
+        return NextResponse.json(result.rows[0], { status: 200 }); // Restituisce il luogo inserito
+    } catch (error) {
+        console.debug(error);
+        return NextResponse.json({ message: `Errore durante l'inserimento del tipo ${tipo}` }, { status: 500 });
+    } finally {
+        client.release();
+    }
 }

@@ -12,9 +12,22 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
 
     useEffect(() => {
         async function fetchOptions(apiEndpoint, key) {
-          const response = await fetch(apiEndpoint);
-          const data = await response.json();
-          setOptions(prevOptions => ({ ...prevOptions, [key]: data })); 
+            try{
+                const response = await fetch(apiEndpoint, {
+                    method: 'GET',
+                    headers: {
+                      'Cache-Control': 'no-cache', // Disabilita la cache
+                    },
+                  });
+                if (!response.ok){
+                    throw new Error (`Errore HTTP! status: ${response.status}`);
+                }
+                const data = await response.json();
+                setOptions(prevOptions => ({ ...prevOptions, [key]: data }));
+            }catch(error){
+                console.error(`Errore nel fetch delle opzioni per i campi select: ${error}`);
+                throw error;
+            }
         }
       
         // Funzione ricorsiva per trovare e recuperare le opzioni per i campi 'select'
@@ -75,13 +88,21 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                         // aggiungi nuove righe
                         for (const item of relatedData) {
                             if (item.isNew) {
-                                const postResponse = await fetch(`${field.apiEndpoint}/${keyProp(newData)}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ...item, parentId: keyProp(newData) }),
-                                });
-                                const newItem = await postResponse.json();
-                                insertedRelatedItems.push(newItem);  // Aggiungi il nuovo item inserito
+                                try{
+                                    const postResponse = await fetch(`${field.apiEndpoint}/${keyProp(newData)}`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ...item, parentId: keyProp(newData) }),
+                                    });                                    
+                                    if (!response.ok){
+                                        throw new Error (`Errore HTTP! status: ${response.status}`);
+                                    }
+                                    const newItem = await postResponse.json();
+                                    insertedRelatedItems.push(newItem);  // Aggiungi il nuovo item inserito
+                                }catch(error){
+                                    console.error(`Errore nell'inserimento dei nuovi dati correlati: ${error}`);
+                                    throw error;
+                                }
                             }
                         }
 
@@ -128,30 +149,55 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                         // Aggiorna le righe esistenti o aggiungi nuove righe
                         for (const item of relatedData) {
                             if (item.isNew) {
-                                const postResponse = await fetch(`${field.apiEndpoint}/${originalKey}`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ...item, parentId: keyProp(updatedItem) }),
-                                });
-                                const newItem = await postResponse.json();
-                                updatedRelatedItems.push(newItem);  // Aggiungi il nuovo item inserito
+                                try{
+                                    const postResponse = await fetch(`${field.apiEndpoint}/${originalKey}`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ...item, parentId: keyProp(updatedItem) }),
+                                    });                                  
+                                    if (!postResponse.ok){
+                                        throw new Error (`Errore HTTP! status: ${postResponse.status}`);
+                                    }
+                                    const newItem = await postResponse.json();
+                                    updatedRelatedItems.push(newItem);  // Aggiungi il nuovo item inserito
+                                }catch(error){
+                                    console.error(`Errore nell'inserimento dei nuovi dati correlati: ${error}`);
+                                    throw error;
+                                }
                             } else {
-                                const putResponse = await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
-                                    method: 'PUT',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(item),
-                                });
-                                const updatedRelatedItem = await putResponse.json();
-                                updatedRelatedItems.push(updatedRelatedItem);  // Aggiungi l'item aggiornato
+                                try{
+                                    const putResponse = await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(item),
+                                    });                                 
+                                    if (!putResponse.ok){
+                                        throw new Error (`Errore HTTP! status: ${putResponse.status}`);
+                                    }
+                                    const updatedRelatedItem = await putResponse.json();
+                                    updatedRelatedItems.push(updatedRelatedItem);  // Aggiungi l'item aggiornato
+                                }catch(error){
+                                    console.error(`Errore nella modifica dei dati correlati: ${error}`);
+                                    throw error;
+                                }
                             }
                         }
 
                         // Cancella le righe rimosse
-                        await Promise.all(Object.values(deletedItems).map(async item =>
-                            await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                            })
+                        await Promise.all(Object.values(deletedItems).map(async item => {
+                                try{
+                                    const deleteResponse = await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                    })                             
+                                    if (!deleteResponse.ok){
+                                        throw new Error (`Errore HTTP! status: ${deleteResponse.status}`);
+                                    }
+                                }catch(error){
+                                    console.error(`Errore nella cancellazione dei dati correlati: ${error}`);
+                                    throw error;
+                                }
+                            }
                         ));
                         setDeletedItems({});
 
@@ -238,8 +284,15 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
           const keys = fieldKey.split('.');  // Separa la chiave in caso di annidamento
       
           // Funzione per aggiornare annidamenti profondi in modo immutabile
-          const updateNestedValue = (obj, keys, value) => {
+          const updateNestedValue = (prevData, keys, value) => {
             const key = keys[0];
+
+            if (keys.length === 1) {
+                return {
+                    ...prevData,
+                    [keys[0]]: value
+                };
+            }
 
             // Controlla se la chiave contiene un array (es: '_nomearray_[0]')
             const arrayMatch = key.match(/^(.+)\[(\d+)\]$/);
@@ -248,35 +301,29 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                 const arrayKey = arrayMatch[1];  // Nome dell'array
                 const index = parseInt(arrayMatch[2], 10);  // Indice dell'array
         
-                const currentArray = obj[arrayKey] || [];  // Recupera l'array corrente o ne crea uno vuoto
+                const currentArray = prevData[arrayKey] || [];  // Recupera l'array corrente o ne crea uno vuoto
         
                 // Assicura che stiamo modificando solo l'elemento all'indice specificato senza aggiungere nuovi elementi
                 return {
-                  ...obj,
+                  ...prevData,
                   [arrayKey]: currentArray.map((item, i) => 
                     i === index ? updateNestedValue(item, keys.slice(1), value) : item
                   )
                 };
             }
-
-            if (keys.length === 1) {
-                return {
-                    ...obj,
-                    [keys[0]]: value
-                };
-            }
       
             return {
-                ...obj,
-                [keys[0]]: updateNestedValue(obj[keys[0]] || {}, keys.slice(1), value)
+                ...prevData,
+                [keys[0]]: updateNestedValue(prevData[keys[0]] || {}, keys.slice(1), value)
             };
           };
-      
+
           return updateNestedValue(prevData, keys, newValue);
         });
     };
 
     const renderField = (field, value, onChange, parentKey = null) => {
+
         const fieldKey = parentKey ? `${parentKey}.${field.key}` : field.key;
       
         // Logica per gestire il campo in base al tipo
@@ -296,25 +343,6 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                     options={selectOptions}
                 />
             )
-        
-          /*return (
-            <select 
-                key={field.key}
-                id={field.key}
-                name={field.key}
-                value={value || options[field.key]?.[0]?.[optionValue] || ''} 
-                onChange={e => onChange(fieldKey, e.target.value)}>
-                <option value="">Seleziona un&apos;opzione</option>
-                {
-                    options[field.key]?.map(option => (
-                        <option key={option[optionValue]} value={option[optionValue]}>
-                            {option[optionLabel]}
-                        </option>
-                    ))
-                }
-            </select>
-          );
-          */
         }
       
         if (field.type === 'Object') {
@@ -375,8 +403,8 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                 }}>
 
                     {
-                        dataProps.map((item) => {
-                            return (
+                        modalOpen &&
+                        dataProps.map((item) => (
                                 <Fragment key={`fragment${item.key}`}>
                                     <label htmlFor={(item.type == "Object" ? '' : item.key)}>
                                         {item.name}
@@ -384,7 +412,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                                     {renderField(item, modalData[item.key], handleFieldChange)}
                                 </Fragment>
                             )
-                        })
+                        )
                     }
                     <div className={styles.buttonContainer}>
                         <button type="button" onClick={handleCloseModal}>Annulla</button>

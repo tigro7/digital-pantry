@@ -5,12 +5,16 @@ import { db } from "@vercel/postgres";
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request, { params }: { params: { ricetta: string} }) {
-    
+
+    console.debug(`ingredienti ${params.ricetta}`);
+        
     const client = await db.connect();
     const rows =  await client.sql`SELECT ingrediente, quantita, unita_misura FROM ingredienti_ricette WHERE ricetta=${params.ricetta}`;
 
-    return NextResponse.json(rows.rows, {status: 200});
+    console.debug(rows.rows);
 
+    client.release();
+    return NextResponse.json(rows.rows, {status: 200});
 }
 
 export async function POST(request: Request, { params }: { params: { ricetta: string} }) {

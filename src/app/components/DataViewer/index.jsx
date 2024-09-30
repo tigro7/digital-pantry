@@ -30,33 +30,49 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
   const [modalData, setModalData] = useState({});
   const [updatingItem, setUpdatingItem] = useState({});
   const [originalKey, setOriginalKey] = useState(null);
+  const [columns, setColumns] = useState([]);
+
+  const fetchNestedData = async (item, url) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Error in fetchNestedData ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    }catch (error){
+      console.error(`Error fetching data for ${item}:`, error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
-    const fetchRelatedData = async () => {
-        // Create a copy of data to avoid mutating state directly
-        const updatedData = await Promise.all(
-            data.map(async (item) => {
+      const fetchRelatedData = async () => {
+          try {
+              // Create a copy of data to avoid mutating state directly
+              const updatedData = [];
+
+              for (const item of data){                      
                 const updatedItem = { ...item };
 
-                for (const prop of dataProps) {
-                    if (prop.type === 'Object' && prop.apiEndpoint) {
-                        const related = await fetch(`${prop.apiEndpoint}/${item[keyProp]}`).then((res) => res.json());
-                        updatedItem[prop.key] = related;
-                    }
+                for (const prop of dataProps.filter(dataProp => dataProp.type === 'Object' && dataProp.apiEndpoint)) {
+                    const data = await fetchNestedData(prop, `${prop.apiEndpoint}/${item[keyProp]}`);
+                    updatedItem[prop.key] = data;
                 }
 
-                return updatedItem;
-            })
-        );
-        
-        setData(updatedData); // Set the data with related fields included
-        setRelatedDataLoaded(true); // Mark related data as loaded
-    };
+                updatedData.push(updatedItem);
+              }
 
-    if (data.length > 0 && !relatedDataLoaded) {
-        fetchRelatedData();
-    }
-  }, [data, dataProps, keyProp, relatedDataLoaded]);
+              setData(updatedData); // Set the data with related fields included
+              setRelatedDataLoaded(true); // Mark related data as loaded
+          } catch (error) {
+              console.error("Errore fetching related data:", error);
+          }
+      };
+
+      if (data.length > 0 && !relatedDataLoaded) {
+          fetchRelatedData(); // Call the async function
+      }
+  }, [data, dataProps, keyProp, relatedDataLoaded]); // Ensure all dependencies are included
 
   useEffect(() => {
     const filterMethod = (o) => {
@@ -84,7 +100,35 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
     };
     const sorted = [...filteredData].sort(sortMethods[sortState].method);
     setFilteredData(sorted);
+    console.debug("updated filtered data")
   }, [filterState, filterField.length, data, sortState]);
+
+  useEffect(() => {
+    //prepara dati per passarli a datatable
+    setColumns(Object.keys(dataProps).map((index) => ({
+      //crea header per tabella con nome e controlli per filtro e ordinamento
+      header: (
+        <div>
+            {dataProps[index].name}
+            <button className={styles.toggleOrder} onClick={() => handleSorting(dataProps[index].key)}>
+                <FontAwesomeIcon className={`${styles.icon} ${sortField.includes(dataProps[index].key) ? styles.active : ''}`} 
+                  icon={sortField.includes(dataProps[index].key) ? (sortState.includes('asc') ? fas.faChevronUp : fas.faChevronDown) : fas.faChevronDown} 
+                />
+            </button>
+            <button className={styles.toggleFilter} onClick={() => handleFilteringField(dataProps[index].key)}>
+                <FontAwesomeIcon className={`${styles.icon} ${filterField.includes(dataProps[index].key) ? styles.active : ''}`} icon={fas.faFilter} />
+            </button>
+        </div>
+      ),
+      //se esiste nei dati una funzione di render, chiama quella, passandogli l'elemento, altrimenti restituisce il valore dell'elemento
+      render: dataProps[index].render ? item => dataProps[index].render(item) : item => renderValue(item, dataProps[index].key),
+      //per la gestione dei moduli css, se esiste className (che è una funzione), gli passa l'elemento e riceve indietro il nome della classe, altrimenti la stringa vuota
+      className: dataProps[index].className ? item => dataProps[index].className(item) : _item => '',
+      //il valore dell'elemento
+      key: dataProps[index].key
+    })));
+
+  }, [dataProps]);
 
   const [rows, setRows] = useState(itemsPerPage);
   const [page, setPage] = useState(1);
@@ -138,7 +182,6 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
   }
 
   const handleSorting = (field) => {
-    console.debug(field);
     if (sortState == 'none'){
         setSortField(field);
         setSort('desc');
@@ -179,8 +222,7 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
 
   // Funzione per determinare se il valore è un array di relazioni
   const renderValue = (item, key) => {
-    const value = item[key];
-    
+    const value = item[key];    
     // Se è un array, combina i valori in una stringa
     if (Array.isArray(value)) {
       return value.map(subItem => Object.values(subItem).join(' - ')).join(', ');
@@ -189,30 +231,6 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
     // Se è un valore semplice, lo stampiamo direttamente
     return value;
   };
-
-  //prepara dati per passarli a datatable
-  const columns = Object.keys(dataProps).map((index) => ({
-    //crea header per tabella con nome e controlli per filtro e ordinamento
-    header: (
-      <div>
-          {dataProps[index].name}
-          <button className={styles.toggleOrder} onClick={() => handleSorting(dataProps[index].key)}>
-              <FontAwesomeIcon className={`${styles.icon} ${sortField.includes(dataProps[index].key) ? styles.active : ''}`} 
-                icon={sortField.includes(dataProps[index].key) ? (sortState.includes('asc') ? fas.faChevronUp : fas.faChevronDown) : fas.faChevronDown} 
-              />
-          </button>
-          <button className={styles.toggleFilter} onClick={() => handleFilteringField(dataProps[index].key)}>
-              <FontAwesomeIcon className={`${styles.icon} ${filterField.includes(dataProps[index].key) ? styles.active : ''}`} icon={fas.faFilter} />
-          </button>
-      </div>
-    ),
-    //se esiste nei dati una funzione di render, chiama quella, passandogli l'elemento, altrimenti restituisce il valore dell'elemento
-    render: dataProps[index].render ? item => dataProps[index].render(item) : item => renderValue(item, dataProps[index].key),
-    //per la gestione dei moduli css, se esiste className (che è una funzione), gli passa l'elemento e riceve indietro il nome della classe, altrimenti la stringa vuota
-    className: dataProps[index].className ? item => dataProps[index].className(item) : _item => '',
-    //il valore dell'elemento
-    key: dataProps[index].key
-  }));
 
   return (
     <ErrorBoundary fallback={<Error/>}>

@@ -11,6 +11,7 @@ export async function GET() {
 
     //console.debug(rows);
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }
@@ -21,7 +22,22 @@ export async function POST(request: Request) {
     const body: Unita_Misura = await request.json();
     const { nome, simbolo } = body;
 
-    await client.sql`INSERT INTO unita_misura (nome, simbolo) VALUES (${nome}, ${simbolo})`;
+    console.debug(nome, simbolo);
 
-    return NextResponse.json({ message: `Unità ${nome} aggiunta!` }, {status: 201});
+    try {
+        const result = await client.sql`
+            INSERT INTO unita_misura (nome, simbolo)
+            VVALUES (${nome}, ${simbolo})
+            RETURNING *;
+        `;
+
+        console.debug(result);
+        return NextResponse.json(result.rows[0], { status: 200 }); // Restituisce il luogo inserito
+    } catch (error) {
+        console.debug(error);
+        return NextResponse.json({ message: `Errore durante l'inserimento dell'unità ${nome}` }, { status: 500 });
+    } finally {
+        client.release();
+    }
+    
 }

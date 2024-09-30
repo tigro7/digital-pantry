@@ -11,6 +11,7 @@ export async function GET() {
 
     //console.debug(rows);
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }
@@ -20,8 +21,22 @@ export async function POST(request: Request) {
     const client = await db.connect();
     const body: Luogo = await request.json();
     const { nome } = body;
+ 
+    console.debug(nome);
 
-    await client.sql`INSERT INTO luogo (nome) VALUES (${nome})`;
+    try {
+        const result = await client.sql`
+            INSERT INTO luogo (nome)
+            VVALUES (${nome})
+            RETURNING *;
+        `;
 
-    return NextResponse.json({ message: `Luogo ${nome} aggiunto!` }, {status: 201});
+        console.debug(result);
+        return NextResponse.json(result.rows[0], { status: 200 }); // Restituisce il luogo inserito
+    } catch (error) {
+        console.debug(error);
+        return NextResponse.json({ message: `Errore durante l'inserimento del luogo ${nome}` }, { status: 500 });
+    } finally {
+        client.release();
+    }
 }

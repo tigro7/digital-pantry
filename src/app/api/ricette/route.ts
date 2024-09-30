@@ -9,11 +9,14 @@ export async function GET() {
     const client = await db.connect();
     const rows =  await client.sql`SELECT * FROM ricette`;
 
+    client.release();
     return NextResponse.json(rows.rows, {status: 200});
 
 }
 
 export async function POST(request: Request) {
+
+    console.debug(`POST - ricette: ${request}`);
 
     const client = await db.connect();
     const body: Ricetta = await request.json();
