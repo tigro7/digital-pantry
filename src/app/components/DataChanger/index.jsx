@@ -80,7 +80,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                 let newData = await response.json();
                 await Promise.all(dataProps.map(async (field) => {
                     if (field.type === 'Object' && field.apiEndpoint) {
-                        const relatedData = modalData[field.key];
+                        const relatedData = modalData[field.key] || [];
                         
                         // Array per memorizzare i dati aggiunti degli oggetti correlati
                         const insertedRelatedItems = [];
@@ -141,7 +141,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                 // Richiama funzione per inserimento, aggiornamento, cancellazione Object innestati
                 await Promise.all(dataProps.map(async (field) => {
                     if (field.type === 'Object' && field.apiEndpoint) {
-                        const relatedData = modalData[field.key];
+                        const relatedData = modalData[field.key] || [];
 
                         // Array per memorizzare i dati aggiornati o aggiunti degli oggetti correlati
                         const updatedRelatedItems = [];
@@ -150,7 +150,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                         for (const item of relatedData) {
                             if (item.isNew) {
                                 try{
-                                    const postResponse = await fetch(`${field.apiEndpoint}/${originalKey}`, {
+                                    const postResponse = await fetch(`${field.apiEndpoint}/${keyProp(updatedItem)}`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ ...item, parentId: keyProp(updatedItem) }),
@@ -166,7 +166,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                                 }
                             } else {
                                 try{
-                                    const putResponse = await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
+                                    const putResponse = await fetch(`${field.apiEndpoint}/${keyProp(updatedItem)}/${item[field.subKey]}`, {
                                         method: 'PUT',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify(item),
@@ -186,7 +186,7 @@ const DataChanger = ({url, dataProps, originalKey, keyProp, handleInsertedData, 
                         // Cancella le righe rimosse
                         await Promise.all(Object.values(deletedItems).map(async item => {
                                 try{
-                                    const deleteResponse = await fetch(`${field.apiEndpoint}/${originalKey}/${item[field.subKey]}`, {
+                                    const deleteResponse = await fetch(`${field.apiEndpoint}/${keyProp(updatedItem)}/${item[field.subKey]}`, {
                                         method: 'DELETE',
                                         headers: { 'Content-Type': 'application/json' },
                                     })                             
