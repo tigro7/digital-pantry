@@ -16,9 +16,9 @@ import { ErrorBoundary } from 'next/dist/client/components/error-boundary';
 import Error from 'next/error';
 import "./datetimepicker.css";
 
-const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], refreshInterval = 0, randomRefresher = 0, crud = "R", clickHandler = (_event) => {}, children}) => {
+const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = ["key"], refreshInterval = 0, randomRefresher = 0, crud = "R", clickHandler = (_event) => {}, children}) => {
 
-  const [data, setData] = useFetch(url, refreshInterval, randomRefresher);
+  const {data, setData, loading, error} = useFetch(url, refreshInterval, randomRefresher);
   const [relatedDataLoaded, setRelatedDataLoaded] = useState(false);
   const [sortState, setSort] = useState('none');
   const [sortField, setSortField] = useState(keyProp);
@@ -166,7 +166,6 @@ const DataViewer = ({url, dataProps, itemsPerPage = 25, keyProp, keyProps = [], 
   }
 
   const handleDeletedData = (deletedItem) => {
-    console.log(data, deletedItem);
     setData(prevData => prevData.filter(dataItem => JSON.stringify(dataItem) !== JSON.stringify(deletedItem)));
   }
 

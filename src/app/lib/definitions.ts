@@ -52,3 +52,9 @@ export interface DataProp<T> {
 }
 
 export type DataProps<T> = DataProp<T>[];
+
+export interface Meal {
+    ricetta: string;
+    pranzo: string;
+    giorno: number;
+}
